@@ -1,0 +1,99 @@
+---
+- hosts: all
+  become: true
+
+  tasks:
+    - name: Install aptitude using apt
+      apt: name=aptitude state=latest update_cache=yes force_apt_get=yes
+
+    - name: Install required system packages
+      apt: name={{ item }} state=latest update_cache=yes
+      loop: [ 'apt-transport-https', 'ca-certificates', 'curl', 'software-properties-common','python3-pip', 'python3-setuptools', 'virtualenv']
+
+    - name: Add Docker GPG apt Key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Add Docker Repository
+      apt_repository:
+        repo: deb https://download.docker.com/linux/ubuntu focal stable
+        state: present
+
+    - name: Update apt and install docker-ce
+      apt: update_cache=yes name=docker-ce state=latest
+
+    - name: Install Docker Module for Python
+      pip:
+        name: docker
+
+    - name: Add remote "ubuntu" user to "docker" group
+      remote_user: ubuntu
+      user:
+        name: "ubuntu"
+        group: "docker"
+        append: yes
+      tags:
+        - docker
+    - name: Install docker-compose
+      apt:
+        name: docker-compose
+        state: present
+        update_cache: yes
+      tags:
+        - docker
+    - name: Create docker/wordpress directory
+      file:
+        path: /opt/docker/wordpress
+        state: directory
+        owner: root
+        group: root
+        mode: 0755
+
+    - name: Create docker-compose file
+      template:
+        src: docker-compose.yml.j2
+        dest: /opt/docker/wordpress/docker-compose.yml
+        owner: root
+        group: root
+        mode: 0644
+
+    - name: Create docker/nginx-conf directory
+      file:
+        path: /opt/docker/wordpress/nginx-conf
+        state: directory
+        owner: root
+        group: root
+        mode: 0755
+    
+    - name: Create nginx.conf file
+      template:
+        src: nginx.conf.j2
+        dest: /opt/docker/wordpress/nginx-conf/nginx.conf
+        owner: root
+        group: root
+        mode: 0644
+
+    - name: Create and start services
+      community.general.docker_compose:
+        project_src: /opt/docker/wordpress
+    
+    - name: Let the docker containers start
+      pause:
+        minutes: 1
+
+    - name: Set up Wordpress using CLI
+      command: docker run -it --rm --volumes-from wordpress --network container:wordpress wordpress:cli wp core install --url="http://{{ public_dns }}" --title="test website" --admin_user=admin --admin_email=admin@example.com
+      register: wpinstall
+    
+    - name: Installing Plugin Simple History
+      command: docker run -it --rm --volumes-from wordpress --network container:wordpress wordpress:cli wp plugin install simple-history --activate
+    
+    - name: Installing plugin Cloudimage - Responsive Images as a Service
+      command: docker run -it --rm --volumes-from wordpress --network container:wordpress wordpress:cli wp plugin install cloudimage --activate
+    
+    - name: Installing plugin Reviews and Rating - Google Business
+      command: docker run -it --rm --volumes-from wordpress --network container:wordpress wordpress:cli wp plugin install g-business-reviews-rating --activate
+
+    - debug: msg="{{ wpinstall.stdout }}"
+    
