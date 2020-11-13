@@ -95,5 +95,5 @@
     - name: Installing plugin Reviews and Rating - Google Business
       command: docker run -it --rm --volumes-from wordpress --network container:wordpress wordpress:cli wp plugin install g-business-reviews-rating --activate
 
-    - debug: msg="{{ wpinstall.stdout }}"
+    - debug: "msg={{ wpinstall.stdout_lines[1] }}"
     
