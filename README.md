@@ -26,4 +26,4 @@ Then run the following commands:
 - terraform init
 - terraform apply -auto-approve
 
-You will see the output with SSH access an Wordpress URL and Wordpress admin password.
+You will see the output with SSH access and Wordpress URL and Wordpress admin password.
